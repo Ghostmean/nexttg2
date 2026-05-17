@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, LogIn, Copy, Check, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,13 +13,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { useAuth } from "@/app/auth-context";
 import { getUserGroups, createGroup, joinGroupByCode } from "@/services/groups";
 import type { Group } from "@/types";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export default function GroupsPage() {
+  return (
+    <ErrorBoundary>
+      <GroupsContent />
+    </ErrorBoundary>
+  );
+}
+
+function GroupsContent() {
   const { profile, loading: authLoading } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,68 +35,73 @@ export default function GroupsPage() {
   const [createName, setCreateName] = useState("");
   const [createDesc, setCreateDesc] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const router = useRouter();
 
-  async function loadGroups() {
+  const loadGroups = useCallback(async () => {
     if (!profile) return;
-    const data = await getUserGroups(profile.telegram_id);
-    setGroups(data);
-    setLoading(false);
-  }
+    try {
+      const data = await getUserGroups(profile.telegram_id);
+      setGroups(data);
+    } catch {
+      setError("Не удалось загрузить группы");
+    } finally {
+      setLoading(false);
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!authLoading && profile) loadGroups();
-  }, [authLoading, profile]);
+  }, [authLoading, profile, loadGroups]);
 
   async function handleCreate() {
-    if (!profile || !createName.trim()) return;
+    if (!profile || !createName.trim() || busy) return;
+    setBusy(true);
+    setError(null);
     try {
-      const promise = createGroup({
+      await createGroup({
         name: createName.trim(),
         description: createDesc.trim() || null,
         telegram_id: profile.telegram_id,
       });
-      toast.promise(promise, {
-        loading: "Создание группы...",
-        success: () => {
-          setCreateOpen(false);
-          setCreateName("");
-          setCreateDesc("");
-          loadGroups();
-          return "Группа создана";
-        },
-        error: (e: Error) => e.message,
-      });
-      await promise;
+      setCreateOpen(false);
+      setCreateName("");
+      setCreateDesc("");
+      await loadGroups();
     } catch (e) {
-      console.error("Create group error:", e);
+      setError(e instanceof Error ? e.message : "Ошибка создания");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleJoin() {
-    if (!profile || !joinCode.trim()) return;
-    const promise = joinGroupByCode({
-      inviteCode: joinCode.trim(),
-      telegram_id: profile.telegram_id,
-    });
-    toast.promise(promise, {
-      loading: "Вступление в группу...",
-      success: () => {
-        setJoinOpen(false);
-        setJoinCode("");
-        loadGroups();
-        return "Вы вступили в группу";
-      },
-      error: (e) => e.message,
-    });
-    await promise;
+    if (!profile || !joinCode.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await joinGroupByCode({
+        inviteCode: joinCode.trim(),
+        telegram_id: profile.telegram_id,
+      });
+      setJoinOpen(false);
+      setJoinCode("");
+      await loadGroups();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка вступления");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function copyCode(code: string, id: number) {
-    await navigator.clipboard.writeText(code);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {}
   }
 
   if (authLoading) {
@@ -129,11 +141,15 @@ export default function GroupsPage() {
                   onChange={(e) => setJoinCode(e.target.value)}
                   className="border-graphite-light bg-graphite"
                 />
+                {error && (
+                  <p className="text-sm text-destructive">{error}</p>
+                )}
                 <Button
                   onClick={handleJoin}
+                  disabled={busy || !joinCode.trim()}
                   className="w-full bg-orange-accent text-black hover:bg-orange-accent/90"
                 >
-                  Вступить
+                  {busy ? "Загрузка..." : "Вступить"}
                 </Button>
               </div>
             </DialogContent>
@@ -173,12 +189,15 @@ export default function GroupsPage() {
                     className="border-graphite-light bg-graphite"
                   />
                 </div>
+                {error && (
+                  <p className="text-sm text-destructive">{error}</p>
+                )}
                 <Button
                   onClick={handleCreate}
-                  disabled={!createName.trim()}
+                  disabled={busy || !createName.trim()}
                   className="w-full bg-orange-accent text-black hover:bg-orange-accent/90"
                 >
-                  Создать
+                  {busy ? "Создание..." : "Создать"}
                 </Button>
               </div>
             </DialogContent>

@@ -17,7 +17,7 @@ export async function validateTelegramInitData(
 
   const encoder = new TextEncoder();
 
-  const secretKey = await crypto.subtle.importKey(
+  const secretKey = await globalThis.crypto.subtle.importKey(
     "raw",
     encoder.encode("WebAppData"),
     { name: "HMAC", hash: "SHA-256" },
@@ -25,13 +25,13 @@ export async function validateTelegramInitData(
     ["sign"]
   );
 
-  const botTokenSignature = await crypto.subtle.sign(
+  const botTokenSignature = await globalThis.crypto.subtle.sign(
     "HMAC",
     secretKey,
     encoder.encode(botToken)
   );
 
-  const finalKey = await crypto.subtle.importKey(
+  const finalKey = await globalThis.crypto.subtle.importKey(
     "raw",
     new Uint8Array(botTokenSignature),
     { name: "HMAC", hash: "SHA-256" },
@@ -39,7 +39,7 @@ export async function validateTelegramInitData(
     ["sign"]
   );
 
-  const computedSignature = await crypto.subtle.sign(
+  const computedSignature = await globalThis.crypto.subtle.sign(
     "HMAC",
     finalKey,
     encoder.encode(dataCheckString)

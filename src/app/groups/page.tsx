@@ -44,23 +44,27 @@ export default function GroupsPage() {
 
   async function handleCreate() {
     if (!profile || !createName.trim()) return;
-    const promise = createGroup({
-      name: createName.trim(),
-      description: createDesc.trim() || null,
-      telegram_id: profile.telegram_id,
-    });
-    toast.promise(promise, {
-      loading: "Создание группы...",
-      success: () => {
-        setCreateOpen(false);
-        setCreateName("");
-        setCreateDesc("");
-        loadGroups();
-        return "Группа создана";
-      },
-      error: "Ошибка создания",
-    });
-    await promise;
+    try {
+      const promise = createGroup({
+        name: createName.trim(),
+        description: createDesc.trim() || null,
+        telegram_id: profile.telegram_id,
+      });
+      toast.promise(promise, {
+        loading: "Создание группы...",
+        success: () => {
+          setCreateOpen(false);
+          setCreateName("");
+          setCreateDesc("");
+          loadGroups();
+          return "Группа создана";
+        },
+        error: (e: Error) => e.message,
+      });
+      await promise;
+    } catch (e) {
+      console.error("Create group error:", e);
+    }
   }
 
   async function handleJoin() {

@@ -32,6 +32,15 @@ CREATE INDEX IF NOT EXISTS idx_group_members_profile_id ON group_members(profile
 CREATE INDEX IF NOT EXISTS idx_groups_invite_code ON groups_table(invite_code);
 CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups_table(created_by);
 
+-- Function for auto-updating updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Triggers for updated_at
 DROP TRIGGER IF EXISTS set_groups_updated_at ON groups_table;
 CREATE TRIGGER set_groups_updated_at

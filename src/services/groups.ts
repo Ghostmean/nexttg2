@@ -2,10 +2,9 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 import type { Group, GroupMember, Profile } from "@/types";
-import { randomBytes } from "crypto";
 
 function generateInviteCode(): string {
-  return randomBytes(4).toString("hex");
+  return Math.random().toString(36).substring(2, 10);
 }
 
 export async function createGroup(params: {

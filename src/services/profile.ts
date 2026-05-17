@@ -17,7 +17,7 @@ export async function upsertProfile(
 ): Promise<Profile> {
   const { telegram_id, username, first_name, last_name, initDataRaw } = params;
 
-  const isValid = validateTelegramInitData(initDataRaw, process.env.BOT_TOKEN!);
+  const isValid = await validateTelegramInitData(initDataRaw, process.env.BOT_TOKEN!);
   if (!isValid) {
     throw new Error("Invalid Telegram init data");
   }
